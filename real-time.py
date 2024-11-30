@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import load_model
+from skimage.feature import hog  
 import joblib
 
 # Function to overlay the gender icon on top of the face and to the right
@@ -94,12 +95,16 @@ filter_paths = {
 
 filters = {emotion: cv2.imread(path, cv2.IMREAD_UNCHANGED) for emotion, path in filter_paths.items()}
 
-# Load gender icons
-male_icon_path = 'C:/Users/LENOVO/Downloads/real-time-emotion-recognition/filters/male_icon.png'
-female_icon_path = 'C:/Users/LENOVO/Downloads/real-time-emotion-recognition/filters/female_icon.png'
+# Load gender icons as images with alpha channels
+male_icon = cv2.imread('C:/Users/LENOVO/Downloads/real-time-emotion-recognition/filters/male_icon.png', cv2.IMREAD_UNCHANGED)
+female_icon = cv2.imread('C:/Users/LENOVO/Downloads/real-time-emotion-recognition/filters/female_icon.png', cv2.IMREAD_UNCHANGED)
 
-male_icon = cv2.imread(male_icon_path, cv2.IMREAD_UNCHANGED)
-female_icon = cv2.imread(female_icon_path, cv2.IMREAD_UNCHANGED)
+
+# Function to preprocess face for SVM (gender detection)
+def preprocess_for_gender_detection(face):
+    face_resized = cv2.resize(face, (128, 128))
+    face_hog, _ = hog(face_resized, pixels_per_cell=(8, 8), cells_per_block=(2, 2), visualize=True)
+    return face_hog.reshape(1, -1)
 
 # Start webcam feed
 cap = cv2.VideoCapture(0)
@@ -136,10 +141,10 @@ while True:
         if emotion_filter is not None:
             overlay_filter(frame, emotion_filter, x, y, w, h)
 
-        # Gender Prediction
-        gender_face = cv2.resize(face, (90, 90)).flatten().reshape(1, -1)
-        predicted_gender = gender_model.predict(gender_face)[0]
-        gender_icon = male_icon if predicted_gender == 1 else female_icon
+         # Gender Prediction using HOG features
+        gender_features = preprocess_for_gender_detection(face)
+        predicted_gender = gender_model.predict(gender_features)[0]
+        gender_icon = male_icon if predicted_gender == 0 else female_icon  # Assuming 0: Male, 1: Female
 
         # Overlay gender icon
         overlay_icon(frame, gender_icon, x, y, w, h)
