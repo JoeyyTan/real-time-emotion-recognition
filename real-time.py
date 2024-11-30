@@ -71,6 +71,16 @@ def overlay_filter(frame, filter_img, x, y, w, h):
         roi[:, :, c] = roi[:, :, c] * (1 - filter_alpha / 255.0) + filter_rgb[:, :, c] * (filter_alpha / 255.0)
     frame[y1:y2, x1:x2] = roi
 
+recent_predictions = []
+window_size = 10  # Adjust based on your frame rate and desired smoothness
+
+def smooth_prediction(new_prediction):
+    recent_predictions.append(new_prediction)
+    if len(recent_predictions) > window_size:
+        recent_predictions.pop(0)  # Remove oldest prediction
+
+    # Return the most common prediction in the window
+    return max(set(recent_predictions), key=recent_predictions.count)
 
 
 
@@ -145,6 +155,7 @@ while True:
         # Gender Prediction using HOG features
         gender_features = preprocess_for_gender_detection(face)
         predicted_gender = gender_model.predict(gender_features)[0]
+        stabilized_gender = smooth_prediction(predicted_gender)
         gender_icon = male_icon if predicted_gender == 0 else female_icon
 
         # Overlay gender icon
