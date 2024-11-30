@@ -115,24 +115,25 @@ while True:
         break
 
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    
+    # Apply Gaussian Blur to reduce noise and improve face detection
+    blurred_frame = cv2.GaussianBlur(gray_frame, (3, 3), 0)
+
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    #can fine-tune depending on preference
-    faces = face_cascade.detectMultiScale(gray_frame, scaleFactor=1.2, minNeighbors=5, minSize=(40, 40))
+    faces = face_cascade.detectMultiScale(blurred_frame, scaleFactor=1.2, minNeighbors=5, minSize=(40, 40))
 
     for (x, y, w, h) in faces:
-        face = gray_frame[y:y+h, x:x+w]
+        face = gray_frame[y:y+h, x:x+w]  # Use original grayscale face (not blurred) for recognition
         resized_face = cv2.resize(face, (48, 48))
         normalized_face = resized_face / 255.0
         reshaped_face = normalized_face.reshape(1, 48, 48, 1)
 
         # Emotion Prediction
-        face_rgb = cv2.cvtColor(face, cv2.COLOR_GRAY2RGB)  # Convert grayscale to RGB (3 channels)
-        resized_face = cv2.resize(face_rgb, (48, 48))  # Resize to 48x48 (standard size for your model)
-        normalized_face = resized_face / 255.0  # Normalize to [0, 1]
-        reshaped_face = normalized_face.reshape(1, 48, 48, 3)  # Add batch dimension and ensure 3 channels
+        face_rgb = cv2.cvtColor(face, cv2.COLOR_GRAY2RGB)
+        resized_face = cv2.resize(face_rgb, (48, 48))
+        normalized_face = resized_face / 255.0
+        reshaped_face = normalized_face.reshape(1, 48, 48, 3)
 
-
-        # Emotion Prediction
         predictions = model.predict(reshaped_face, verbose=0)
         predicted_emotion = categories[np.argmax(predictions)]
 
@@ -141,10 +142,10 @@ while True:
         if emotion_filter is not None:
             overlay_filter(frame, emotion_filter, x, y, w, h)
 
-         # Gender Prediction using HOG features
+        # Gender Prediction using HOG features
         gender_features = preprocess_for_gender_detection(face)
         predicted_gender = gender_model.predict(gender_features)[0]
-        gender_icon = male_icon if predicted_gender == 0 else female_icon  # Assuming 0: Male, 1: Female
+        gender_icon = male_icon if predicted_gender == 0 else female_icon
 
         # Overlay gender icon
         overlay_icon(frame, gender_icon, x, y, w, h)
